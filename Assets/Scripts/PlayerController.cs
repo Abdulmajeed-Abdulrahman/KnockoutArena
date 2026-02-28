@@ -3,26 +3,40 @@ using System.Collections;
 
 public class PlayerController : MonoBehaviour
 {
-    public float speed = 5.0f;
-    public float gravityModifier = 1.0f; 
+    [Header("Movement Settings")]
+    [SerializeField] [Range(1.0f, 20.0f)] [Tooltip("Speed of the player movement via AddForce.")] 
+    private float speed = 5.0f;
+
+    [SerializeField] [Tooltip("Multiplied by Physics.gravity in Start.")] 
+    private float gravityModifier = 1.0f; 
     
     private Rigidbody playerRb;
     private GameObject focalPoint;
 
-    public bool hasPowerup = false;
-    public float powerupStrength = 15.0f;
-    public GameObject powerupIndicator;
+    [Header("Powerup Settings")]
+    [HideInInspector] public bool hasPowerup = false; // Public for other scripts but hidden in Inspector per lab requirements
+
+    [SerializeField] [Range(5.0f, 30.0f)] [Tooltip("Strength of the knockback impulse applied to enemies.")] 
+    private float powerupStrength = 15.0f;
+
+    [SerializeField] private GameObject powerupIndicator;
 
     // Animation reference
     private Animator indicatorAnim;
 
-    // Audio and Particle variables
-    public ParticleSystem powerupParticle; // Public for Inspector assignment 
-    public AudioClip collisionSound; // Public AudioClip variable 
-    private AudioSource playerAudio; // Private variable for caching
+    [Header("Effects & Audio")]
+    [SerializeField] [Tooltip("Particle system triggered upon collecting a powerup.")] 
+    private ParticleSystem powerupParticle;
+
+    [SerializeField] private AudioClip collisionSound; 
+    private AudioSource playerAudio; 
+
+    private GameManager gameManager;
 
     void Start()
     {
+        gameManager = GameObject.Find("GameManager").GetComponent<GameManager>();
+
         playerRb = GetComponent<Rigidbody>();
         focalPoint = GameObject.Find("Focal Point");
 
@@ -43,7 +57,7 @@ public class PlayerController : MonoBehaviour
         // Lose condition: falling off the edge
         if (transform.position.y < -10)
         {
-            GameManager.TriggerGameOver();
+            gameManager.TriggerGameOver();
             Destroy(gameObject);
         }
     }

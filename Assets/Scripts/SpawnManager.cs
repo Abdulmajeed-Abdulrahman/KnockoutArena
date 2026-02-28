@@ -2,43 +2,64 @@ using UnityEngine;
 
 public class SpawnManager : MonoBehaviour
 {
-    public GameObject enemyPrefab;
-    public GameObject powerupPrefab;
+    [Header("Prefabs")]
+    [SerializeField] [Tooltip("The enemy object to instantiate.")] 
+    private GameObject enemyPrefab;
+
+    [SerializeField] [Tooltip("The powerup object to instantiate.")] 
+    private GameObject powerupPrefab;
+
+    [Header("Spawn Settings")]
+    [SerializeField] [Range(5.0f, 15.0f)] [Tooltip("The radius from center (0,0,0) where objects can spawn.")] 
     private float spawnRange = 9.0f;
-    
-    public int enemyCount;
-    public int waveNumber = 1;
+
+    [HideInInspector] public int enemyCount;
+    [HideInInspector] public int waveNumber = 1;
 
     private bool isGameOver = false;
+    private bool isGameStarted = false;
+    private GameManager gameManager;
 
     void Start()
     {
-        // Initial spawn call
+        // Cache the GameManager reference
+        gameManager = GameObject.Find("GameManager").GetComponent<GameManager>();
+        
+    }
+
+    // Called by GameManager.StartGame() when a difficulty button is pressed
+    public void StartInitialWave()
+    {
+        isGameStarted = true; // Allow the Update loop to start checking enemy counts
+        
+        // Initialize UI display for the first wave
+        gameManager.UpdateWave(waveNumber);
+        
+        // Spawn the first wave
         SpawnEnemyWave(waveNumber);
         Instantiate(powerupPrefab, GenerateSpawnPosition(), powerupPrefab.transform.rotation);
+        
+        Debug.Log("Initial wave started via GameManager.");
     }
 
     void Update()
     {
-        if (isGameOver)
-        {
-            return;
-        }
+        //nothing happens after Game Over or before the game starts
+        if (isGameOver || !isGameStarted) return;
 
-        // Detect when all enemies are defeated
-        enemyCount = GameObject.FindGameObjectsWithTag("Enemy").Length;
+        // Detect when all enemies are defeated 
+        enemyCount = FindObjectsByType<Enemy>(FindObjectsSortMode.None).Length;
 
         if (enemyCount == 0)
         {
-            waveNumber++; // Increment wave number
-            SpawnEnemyWave(waveNumber); // Spawn more enemies than previous wave
+            waveNumber++;
+            gameManager.UpdateWave(waveNumber); // Update UI for new wave 
             
-            // Spawn a new powerup for the new wave
-            Instantiate(powerupPrefab, GenerateSpawnPosition(), powerupPrefab.transform.rotation);
+            SpawnEnemyWave(waveNumber);
+            Instantiate(powerupPrefab, GenerateSpawnPosition(), Quaternion.identity);
         }
     }
 
-    // Method with a for-loop to instantiate 'count' enemies
     void SpawnEnemyWave(int enemiesToSpawn)
     {
         for (int i = 0; i < enemiesToSpawn; i++)
@@ -47,31 +68,16 @@ public class SpawnManager : MonoBehaviour
         }
     }
 
-    // Separate method with a Vector3 return type for random positions
     private Vector3 GenerateSpawnPosition()
     {
         float spawnPosX = Random.Range(-spawnRange, spawnRange);
         float spawnPosZ = Random.Range(-spawnRange, spawnRange);
-        
-        Vector3 randomPos = new Vector3(spawnPosX, 1, spawnPosZ);
-        return randomPos;
+        return new Vector3(spawnPosX, 1, spawnPosZ);
     }
 
-    private void OnEnable()
-    {
-        // Subscribe to the event 
-        GameManager.OnGameOver += StopSpawning;
-    }
+    // Events and Delegates for Game Over
+    private void OnEnable() => GameManager.OnGameOver += StopSpawning;
+    private void OnDisable() => GameManager.OnGameOver -= StopSpawning;
 
-    private void OnDisable()
-    {
-        // Unsubscribe from the event 
-        GameManager.OnGameOver -= StopSpawning;
-    }
-
-    void StopSpawning()
-    {
-        isGameOver = true; 
-        Debug.Log("SpawnManager has stopped spawning.");
-    }
+    void StopSpawning() => isGameOver = true;
 }

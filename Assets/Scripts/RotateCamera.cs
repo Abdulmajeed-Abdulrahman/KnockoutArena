@@ -2,7 +2,10 @@ using UnityEngine;
 
 public class RotateCamera : MonoBehaviour
 {
-    public float rotationSpeed = 100f;
+    [SerializeField] 
+    [Range(50f, 250f)] 
+    [Tooltip("Controls how fast the camera orbits around the arena focal point.")]
+    private float rotationSpeed = 100f;
 
     void Update()
     {
