@@ -14,14 +14,14 @@ public class PlayerController : MonoBehaviour
     private GameObject focalPoint;
 
     [Header("Powerup Settings")]
-    [HideInInspector] public bool hasPowerup = false; // Public for other scripts but hidden in Inspector per lab requirements
+    [HideInInspector] public bool hasPowerup = false; 
 
     [SerializeField] [Range(5.0f, 30.0f)] [Tooltip("Strength of the knockback impulse applied to enemies.")] 
     private float powerupStrength = 15.0f;
 
     [SerializeField] private GameObject powerupIndicator;
 
-    // Animation reference
+    // Animation reference for the indicator
     private Animator indicatorAnim;
 
     [Header("Effects & Audio")]
@@ -31,6 +31,24 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private AudioClip collisionSound; 
     private AudioSource playerAudio; 
 
+    [Header("Section 3: Animation (Camera Shake)")]
+    [SerializeField] [Tooltip("The Animator attached to the Main Camera.")]
+    private Animator cameraAnimator;
+
+    [Header("Section 5: Camera (Dynamic FOV)")]
+    [SerializeField] [Tooltip("Reference to the Main Camera.")]
+    private Camera mainCamera;
+
+    [SerializeField] [Tooltip("The standard Field of View.")]
+    private float normalFOV = 60f;
+
+    [SerializeField] [Tooltip("The Field of View when powered up.")]
+    private float powerupFOV = 75f;
+
+    [SerializeField] [Tooltip("How fast the camera transitions between FOV values.")]
+    private float fovLerpSpeed = 5f;
+
+    private float targetFOV;
     private GameManager gameManager;
 
     void Start()
@@ -47,12 +65,26 @@ public class PlayerController : MonoBehaviour
 
         // AudioSource cached
         playerAudio = GetComponent<AudioSource>();
+
+        // Section 5: Initialize Camera and FOV
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+        }
+        
+        targetFOV = normalFOV;
     }
 
     void Update()
     {
         float forwardInput = Input.GetAxis("Vertical");
         playerRb.AddForce(focalPoint.transform.forward * speed * forwardInput);
+
+        // Section 5: Smoothly Lerp FOV based on target
+        if (mainCamera != null)
+        {
+            mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, targetFOV, Time.deltaTime * fovLerpSpeed);
+        }
 
         // Lose condition: falling off the edge
         if (transform.position.y < -10)
@@ -70,10 +102,13 @@ public class PlayerController : MonoBehaviour
             hasPowerup = true;
             powerupIndicator.SetActive(true);
 
-            powerupParticle.Play(); // Triggered programmatically on collect
+            powerupParticle.Play(); 
 
             // Start the animation state via code 
             indicatorAnim.SetBool("isSpinning", true);
+
+            // Section 5: Trigger FOV change
+            targetFOV = powerupFOV;
 
             Destroy(other.gameObject);
             
@@ -85,20 +120,29 @@ public class PlayerController : MonoBehaviour
     // Coroutine to handle the powerup timer
     IEnumerator PowerupCountdownRoutine()
     {
-        yield return new WaitForSeconds(7); // Powerup lasts 7 seconds
+        yield return new WaitForSeconds(7); 
         hasPowerup = false;
 
         // Return to idle animation state via code 
         indicatorAnim.SetBool("isSpinning", false);
 
         powerupIndicator.SetActive(false);
+
+        // Section 5: Reset FOV back to normal
+        targetFOV = normalFOV;
     }
 
     // Handle Knockback on Collision
     private void OnCollisionEnter(Collision collision)
     {
-        // Play 1 sound effect via AudioSource.PlayOneShot 
+        // Play collision sound
         playerAudio.PlayOneShot(collisionSound, 1.0f);
+
+        // Section 3: Trigger Camera Shake on ANY collision with an enemy
+        if (collision.gameObject.CompareTag("Enemy") && cameraAnimator != null)
+        {
+            cameraAnimator.SetTrigger("shake");
+        }
 
         if (collision.gameObject.CompareTag("Enemy") && hasPowerup)
         {

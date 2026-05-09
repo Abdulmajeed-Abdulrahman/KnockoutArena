@@ -3,6 +3,7 @@ using System;
 using TMPro;
 using UnityEngine.SceneManagement;
 using System.Collections;
+using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
 {
@@ -17,11 +18,27 @@ public class GameManager : MonoBehaviour
 
     [SerializeField] private GameObject titleScreen;
 
+    [Header("Visual Enhancements (Assignment 3)")]
+    [SerializeField] [Tooltip("Reference to the script on the Arena that changes its color.")]
+    private ArenaColorShifter colorShifter;
+
+    [Header("Section 2: Lighting")]
+    [SerializeField] [Tooltip("The 4 Spot Lights at the corners of the arena.")]
+    private Light[] edgeLights;
+
+    [SerializeField] [Tooltip("How much edge light intensity increases per wave.")]
+    private float lightGrowthFactor = 0.5f;
+
+    [Header("Section 4: VFX")]
+    [SerializeField] [Tooltip("Particle system that bursts when a new wave starts.")]
+    private ParticleSystem waveDustEffect;
+
     [Header("Advanced Extension")]
     [SerializeField] private CanvasGroup gameOverCanvasGroup;
     [SerializeField] private float fadeDuration = 0.5f;
 
     private int score = 0;
+    private float initialEdgeIntensity;
 
     [HideInInspector]
     public bool isGameActive = false;
@@ -30,9 +47,14 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         UpdateScore(0);
+        
+        // Store the starting intensity of lights
+        if (edgeLights != null && edgeLights.Length > 0)
+        {
+            initialEdgeIntensity = edgeLights[0].intensity;
+        }
     }
 
-// Public method called by the DifficultyButtons
     public void StartGame(int difficulty)
     {
         isGameActive = true;
@@ -41,7 +63,6 @@ public class GameManager : MonoBehaviour
 
         titleScreen.SetActive(false);
         
-        // Trigger your first wave here instead of in SpawnManager's Start
         GameObject.Find("SpawnManager").GetComponent<SpawnManager>().StartInitialWave();
     }
 
@@ -61,6 +82,30 @@ public class GameManager : MonoBehaviour
         if (isGameActive)
         {
             waveText.text = "Wave: " + waveNumber;
+
+            // Section 1: Shaders and Materials
+            if (colorShifter != null)
+            {
+                colorShifter.ChangeArenaColor(waveNumber);
+            }
+
+            // Section 2: Lighting
+            if (edgeLights != null)
+            {
+                foreach (Light light in edgeLights)
+                {
+                    if (light != null)
+                    {
+                        light.intensity = initialEdgeIntensity + (waveNumber * lightGrowthFactor);
+                    }
+                }
+            }
+
+            // Section 4: VFX - Play the dust burst when a new wave starts
+            if (waveDustEffect != null)
+            {
+                waveDustEffect.Play();
+            }
         }
     }
 
@@ -69,44 +114,31 @@ public class GameManager : MonoBehaviour
         if (isGameActive)
         {
             isGameActive = false;
-
-            // Activate Game Over UI so the coroutine can run
             gameOverCanvasGroup.gameObject.SetActive(true);
-
-            // Start the fade-in animation
             StartCoroutine(FadeIn(gameOverCanvasGroup, fadeDuration));
             
             if (OnGameOver != null)
             {
                 OnGameOver();
-                Debug.Log("Game Over!");
             }
         }
     }
 
-    // Public method for the Restart Button to call 
     public void RestartGame()
     { 
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
-    // Coroutine using while loop and Time.deltaTime
     IEnumerator FadeIn(CanvasGroup cg, float dur)
     {
         float t = 0;
         while (t < dur)
         {
             t += Time.deltaTime;
-            cg.alpha = t / dur; // Calculate progress from 0 to 1
-            yield return null; // Wait for the next frame
+            cg.alpha = t / dur;
+            yield return null;
         }
-        cg.alpha = 1; // Ensure it's fully visible at the end
-    }
-
-    private void PulseScore()
-    {
-        StopCoroutine("PunchScale"); // Stop existing pulse to prevent overlapping
-        StartCoroutine(PunchScale(scoreText.transform, 1.2f, 0.1f));
+        cg.alpha = 1;
     }
 
     IEnumerator PunchScale(Transform target, float scaleUp, float dur)
@@ -115,7 +147,6 @@ public class GameManager : MonoBehaviour
         Vector3 targetScale = Vector3.one * scaleUp;
 
         float t = 0;
-        // Scale Up
         while (t < dur)
         {
             t += Time.deltaTime;
@@ -124,7 +155,6 @@ public class GameManager : MonoBehaviour
         }
 
         t = 0;
-        // Scale Down
         while (t < dur)
         {
             t += Time.deltaTime;
